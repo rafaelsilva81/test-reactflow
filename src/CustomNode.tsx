@@ -10,7 +10,7 @@ function CustomNode({ data }: { data: MappingNodeData }) {
         {data.fields &&
           Object.keys(data.fields).map((field) => (
             <span key={field} className="text-xs text-gray-600">
-              {field}: {data.fields![field]}
+              {field}: {data.fields![field].value} ({data.fields![field].type})
             </span>
           ))}
       </div>

@@ -14,27 +14,26 @@ import "reactflow/dist/base.css";
 import CustomNode from "./CustomNode";
 
 import data from "../example.json";
+import useAutoLayout from "./useAutoLayout";
 
 const nodeTypes = {
   custom: CustomNode,
-  start: CustomNode,
+  start: () => <div> start </div>,
 };
 
 export type MappingNodeData = {
   title: string;
   fields?: {
-    [key: string]: string | number | boolean;
+    [key: string]: {
+      value: string | number | boolean;
+      type: string;
+    };
   };
 };
 
-export type MappingNode = {
-  data: MappingNodeData;
-} & Node;
+export type MappingNode = Node<MappingNodeData>;
 
-type MappingEdge = Edge & {
-  source: string;
-  target: string;
-};
+type MappingEdge = Edge;
 
 type GraphNode = {
   nodes: MappingNode[];
@@ -46,13 +45,13 @@ function App() {
     (
       json: object,
       currentNode?: Node,
-      nodes?: Node[],
-      edges?: Edge[]
+      nodes?: MappingNode[],
+      edges?: MappingEdge[]
     ): GraphNode => {
       const n = nodes || [];
       const e = edges || [];
 
-      let current;
+      let current: MappingNode;
 
       if (!currentNode) {
         current = {
@@ -70,9 +69,9 @@ function App() {
         current = currentNode;
       }
 
-      console.debug("nodes", n);
-      console.debug("edges", e);
-      console.debug("current", current);
+      // console.debug("nodes", n);
+      // console.debug("edges", e);
+      // console.debug("current", current);
 
       // para cada chave do objeto
       for (const key in json) {
@@ -80,10 +79,19 @@ function App() {
         if (typeof json[key] === "object") {
           // criar um nó, e chamar a função recursivamente para o valor da chave
 
-          const newNode = {
-            id: key,
+          let nodeTitle: string;
+
+          if (!isNaN(Number(key))) {
+            nodeTitle = `${current.data.title}[${key}]`;
+          } else {
+            nodeTitle = key;
+          }
+
+          const newNode: MappingNode = {
+            id: nodeTitle,
             data: {
-              title: key,
+              title: nodeTitle,
+              fields: {},
             },
             type: "custom",
             position: {
@@ -95,7 +103,7 @@ function App() {
           n.push(newNode);
 
           // criar uma aresta entre o nó atual e o nó criado
-          const newEdge = {
+          const newEdge: MappingEdge = {
             id: `${current.id}-${newNode.id}`,
             source: current.id,
             target: newNode.id,
@@ -108,7 +116,10 @@ function App() {
           // adicionar ao campo "data" do nó atual cada um dos campos do objeto
           current.data.fields = {
             ...current.data.fields,
-            [key]: json[key],
+            [key]: {
+              value: json[key],
+              type: typeof json[key],
+            },
           };
         }
       }
@@ -120,8 +131,13 @@ function App() {
 
   const tree = useMemo(() => transformToReactFlowTree(data), []);
 
+  useAutoLayout({
+    direction: "LR",
+  });
   const [nodes, setNodes, onNodesChange] = useNodesState(tree.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(tree.edges);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<MappingEdge>(
+    tree.edges
+  );
 
   useEffect(() => {
     console.debug("nodes", nodes);
@@ -145,6 +161,7 @@ function App() {
         nodesConnectable={false}
         elementsSelectable={false}
         fitView
+        minZoom={-Infinity}
       >
         <Background variant={BackgroundVariant.Dots} />
       </ReactFlow>
